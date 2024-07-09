@@ -296,12 +296,12 @@ function U.uncommenter(left, right, padding, scol, ecol)
         -- for linewise --
         ------------------
         if is_lw then
-            local a, b, c = string.match(line, pattern)
+            local a, b = string.match(line, pattern)
             -- When user tries to uncomment when there is nothing to uncomment. See #221
             assert(a and b, { msg = 'Nothing to uncomment!' })
             -- If there is nothing after LHS then just return ''
             -- bcz the line previously (before comment) was empty
-            return U.is_empty(b) and b or a .. b .. (c or '')
+            return a .. b
         end
 
         --------------------------------
