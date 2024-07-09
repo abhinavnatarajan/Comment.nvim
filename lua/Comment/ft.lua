@@ -2,15 +2,13 @@
 ---@brief [[
 ---This module is the core of filetype and commentstring detection and uses the
 ---|lua-treesitter| APIs to accurately detect filetype and gives the corresponding
----commentstring, stored inside the plugin, for the filetype/langauge.
+---commentstring, stored inside the plugin, for the filetype/language.
 ---
 ---Compound (dot-separated) filetypes are also supported i.e. 'ansible.yaml',
 ---'ios.swift' etc. The commentstring resolution will be done from left to right.
 ---For example, If the filetype is 'ansible.yaml' then 'ansible' commenstring will
 ---be used if found otherwise it'll fallback to 'yaml'. Read `:h 'filetype'`
 ---@brief ]]
-
-local A = vim.api
 
 ---Common commentstring shared b/w multiple languages
 local M = {
@@ -264,11 +262,11 @@ end
 ---vue, markdown etc.
 ---
 ---NOTE: This ignores `tree-sitter-comment` parser, if installed.
----@param tree userdata Parse tree to be walked
+---@param tree vim.treesitter.LanguageTree Parse tree to be walked
 ---@param range integer[] Range to check
 ---{start_row, start_col, end_row, end_col}
----@return userdata #Returns a |treesitter-languagetree|
----@see treesitter-languagetree
+---@return vim.treesitter.LanguageTree #Returns a |vim.treesitter.LanguageTree|
+---@see vim.treesitter.LanguageTree
 ---@see lua-treesitter-core
 ---@usage [[
 ---local ok, parser = pcall(vim.treesitter.get_parser, 0)
@@ -291,7 +289,7 @@ end
 ---@return nil|string #Commentstring
 ---@see comment.utils.CommentCtx
 function ft.calculate(ctx)
-    local ok, parser = pcall(vim.treesitter.get_parser, A.nvim_get_current_buf())
+    local ok, parser = pcall(vim.treesitter.get_parser, vim.api.nvim_get_current_buf())
 
     if not ok then
         return ft.get(vim.bo.filetype, ctx.ctype) --[[ @as string ]]

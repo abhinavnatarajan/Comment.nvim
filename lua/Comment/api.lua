@@ -6,10 +6,9 @@
 ---@brief ]]
 
 local Config = require('Comment.config')
-local U = require('Comment.utils')
-local Op = require('Comment.opfunc')
-local Ex = require('Comment.extra')
-local A = vim.api
+local Utils = require('Comment.utils')
+local Opfunc = require('Comment.opfunc')
+local Extra = require('Comment.extra')
 
 local api, core = {}, {}
 
@@ -19,19 +18,19 @@ local api, core = {}, {}
 ---@return table
 function core.__index(that, ctype)
     local idxd = {}
-    local mode, type = that.cmode, U.ctype[ctype]
+    local mode, type = that.cmode, Utils.ctype[ctype]
 
     ---To comment the current-line
     ---NOTE:
     ---In current-line linewise method, 'opmode' is not useful which is always equals to `char`
     ---but we need 'nil' here which is used for current-line
     function idxd.current(_, cfg)
-        U.catch(Op.opfunc, nil, cfg or Config:get(), mode, type)
+        Utils.catch(Opfunc.opfunc, nil, cfg or Config:get(), mode, type)
     end
 
     ---To comment lines with a count
     function idxd.count(count, cfg)
-        U.catch(Op.count, count or A.nvim_get_vvar('count'), cfg or Config:get(), mode, type)
+        Utils.catch(Opfunc.count, count or vim.api.nvim_get_vvar('count'), cfg or Config:get(), mode, type)
     end
 
     ---@private
@@ -44,7 +43,7 @@ function core.__index(that, ctype)
     return setmetatable({}, {
         __index = idxd,
         __call = function(_, motion, cfg)
-            U.catch(Op.opfunc, motion, cfg or Config:get(), mode, type)
+            Utils.catch(Opfunc.opfunc, motion, cfg or Config:get(), mode, type)
         end,
     })
 end
@@ -107,7 +106,7 @@ end
 ---    api.toggle.blockwise(vim.fn.visualmode())
 ---end)
 ---@usage ]]
-api.toggle = setmetatable({ cmode = U.cmode.toggle }, core)
+api.toggle = setmetatable({ cmode = Utils.cmode.toggle }, core)
 
 ---@tag comment.api.comment.linewise
 ---@tag comment.api.comment.blockwise
@@ -131,7 +130,7 @@ api.toggle = setmetatable({ cmode = U.cmode.toggle }, core)
 ---api.comment.blockwise.current(motion?, config?)
 ---api.comment.blockwise.count(count, config?)
 ---@usage ]]
-api.comment = setmetatable({ cmode = U.cmode.comment }, core)
+api.comment = setmetatable({ cmode = Utils.cmode.comment }, core)
 
 ---@tag comment.api.uncomment.linewise
 ---@tag comment.api.uncomment.blockwise
@@ -155,7 +154,7 @@ api.comment = setmetatable({ cmode = U.cmode.comment }, core)
 ---api.uncomment.blockwise.current(motion?, config?)
 ---api.uncomment.blockwise.count(count, config?)
 ---@usage ]]
-api.uncomment = setmetatable({ cmode = U.cmode.uncomment }, core)
+api.uncomment = setmetatable({ cmode = Utils.cmode.uncomment }, core)
 
 ---Provides API to to insert comment on previous, next or at the end-of-line.
 ---Every function takes an optional {config} parameter.
@@ -177,13 +176,13 @@ api.insert = setmetatable({}, {
     __index = function(_, ctype)
         return {
             above = function(cfg)
-                U.catch(Ex.insert_above, U.ctype[ctype], cfg or Config:get())
+                Utils.catch(Extra.insert_above, Utils.ctype[ctype], cfg or Config:get())
             end,
             below = function(cfg)
-                U.catch(Ex.insert_below, U.ctype[ctype], cfg or Config:get())
+                Utils.catch(Extra.insert_below, Utils.ctype[ctype], cfg or Config:get())
             end,
             eol = function(cfg)
-                U.catch(Ex.insert_eol, U.ctype[ctype], cfg or Config:get())
+                Utils.catch(Extra.insert_eol, Utils.ctype[ctype], cfg or Config:get())
             end,
         }
     end,
@@ -216,7 +215,7 @@ api.insert = setmetatable({}, {
 ---@usage ]]
 function api.locked(cb)
     return function(motion)
-        return A.nvim_command(
+        return vim.api.nvim_command(
             ('lockmarks lua require("Comment.api").%s(%s)'):format(cb, motion and ('%q'):format(motion))
         )
     end
@@ -244,8 +243,8 @@ end
 ---@usage ]]
 function api.call(cb, op)
     return function()
-        A.nvim_set_option('operatorfunc', ("v:lua.require'Comment.api'.locked'%s'"):format(cb))
-        Config.position = Config:get().sticky and A.nvim_win_get_cursor(0) or nil
+        vim.o.operatorfunc = ("v:lua.require'Comment.api'.locked'%s'"):format(cb)
+        Config.position = Config:get().sticky and vim.api.nvim_win_get_cursor(0) or nil
         return op
     end
 end

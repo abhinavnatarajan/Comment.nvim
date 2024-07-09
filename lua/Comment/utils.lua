@@ -1,7 +1,6 @@
 ---@mod comment.utils Utilities
 
-local F = require('Comment.ft')
-local A = vim.api
+local Ft = require('Comment.ft')
 
 local U = {}
 
@@ -113,12 +112,12 @@ end
 ---@return CommentRange
 function U.get_region(opmode)
     if not opmode then
-        local row = unpack(A.nvim_win_get_cursor(0))
+        local row = unpack(vim.api.nvim_win_get_cursor(0))
         return { srow = row, scol = 0, erow = row, ecol = 0 }
     end
 
     local marks = string.match(opmode, '[vV]') and { '<', '>' } or { '[', ']' }
-    local sln, eln = A.nvim_buf_get_mark(0, marks[1]), A.nvim_buf_get_mark(0, marks[2])
+    local sln, eln = vim.api.nvim_buf_get_mark(0, marks[1]), vim.api.nvim_buf_get_mark(0, marks[2])
 
     return { srow = sln[1], scol = sln[2], erow = eln[1], ecol = eln[2] }
 end
@@ -128,9 +127,9 @@ end
 ---@return string[] #List of lines
 ---@return CommentRange
 function U.get_count_lines(count)
-    local srow = unpack(A.nvim_win_get_cursor(0))
+    local srow = unpack(vim.api.nvim_win_get_cursor(0))
     local erow = (srow + count) - 1
-    local lines = A.nvim_buf_get_lines(0, srow - 1, erow, false)
+    local lines = vim.api.nvim_buf_get_lines(0, srow - 1, erow, false)
 
     return lines, { srow = srow, scol = 0, erow = erow, ecol = 0 }
 end
@@ -141,10 +140,10 @@ end
 function U.get_lines(range)
     -- If start and end is same, then just return the current line
     if range.srow == range.erow then
-        return { A.nvim_get_current_line() }
+        return { vim.api.nvim_get_current_line() }
     end
 
-    return A.nvim_buf_get_lines(0, range.srow - 1, range.erow, false)
+    return vim.api.nvim_buf_get_lines(0, range.srow - 1, range.erow, false)
 end
 
 ---Validates and unwraps the given commentstring
@@ -174,7 +173,7 @@ function U.parse_cstr(cfg, ctx)
     -- 1. We ask `pre_hook` for a commentstring
     local inbuilt = U.is_fn(cfg.pre_hook, ctx)
         -- 2. Calculate w/ the help of treesitter
-        or F.calculate(ctx)
+        or Ft.calculate(ctx)
 
     assert(inbuilt or (ctx.ctype ~= U.ctype.blockwise), {
         msg = vim.bo.filetype .. " doesn't support block comments!",

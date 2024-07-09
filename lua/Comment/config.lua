@@ -30,7 +30,7 @@
 ---@field sticky boolean
 ---Lua pattern used to ignore lines
 ---during (un)comment (default: 'nil')
----@field ignore string|fun():string
+---@field ignore? string|fun():string
 ---Enables |comment.keybindings|
 ---NOTE: If given 'false', then the
 ---plugin won't create any mappings
@@ -42,12 +42,12 @@
 ---It is called with a {ctx} argument
 ---of type |comment.utils.CommentCtx|
 ---(default: 'nil')
----@field pre_hook fun(c: CommentCtx): string
+---@field pre_hook? fun(c: CommentCtx): string
 ---Function to call after (un)comment.
 ---It is called with a {ctx} argument
 ---of type |comment.utils.CommentCtx|
 ---(default: 'nil')
----@field post_hook fun(c: CommentCtx)
+---@field post_hook? fun(c: CommentCtx)
 
 ---Create default mappings
 ---@class Mappings
