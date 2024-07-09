@@ -257,19 +257,19 @@ end
 ---
 ---If given {string[]} to the closure then it will block uncomment
 ---else linewise uncomment will be done with the given {string}
----@param left string Left side of the commentstring
----@param right string Right side of the commentstring
+---@param l_cstr string Left side of the commentstring
+---@param r_cstr string Right side of the commentstring
 ---@param padding boolean Is padding enabled?
 ---@param scol? integer Starting column
 ---@param ecol? integer Ending column
 ---@return fun(line: string|string[]):string|string[]
-function U.uncommenter(left, right, padding, scol, ecol)
-    local pp, plen = U.get_padpat(padding), padding and 1 or 0
-    local left_len, right_len = #left + plen, #right + plen
-    local ll = U.is_empty(left) and left or vim.pesc(left) .. pp
-    local rr = U.is_empty(right) and right or pp .. vim.pesc(right)
+function U.uncommenter(l_cstr, r_cstr, padding, scol, ecol)
+    local padpattern, padlen = U.get_padpat(padding), padding and 1 or 0
+    local left_len, right_len = #l_cstr + padlen, #r_cstr + padlen
+    local lpattern = U.is_empty(l_cstr) and l_cstr or vim.pesc(l_cstr) .. padpattern
+    local rpattern = U.is_empty(r_cstr) and r_cstr or padpattern .. vim.pesc(r_cstr)
     local is_lw = not (scol and scol)
-    local pattern = is_lw and '^(%s*)' .. ll .. '(.-)' .. rr .. '$' or ''
+    local pattern = is_lw and '^(%s*)' .. lpattern .. '(.-)' .. rpattern .. '$' or ''
 
     return function(line)
         -------------------
@@ -286,8 +286,8 @@ function U.uncommenter(left, right, padding, scol, ecol)
                 line[1] = sfirst .. slast
                 line[#line] = efirst .. elast
             else
-                line[1] = string.gsub(first, '^(%s*)' .. ll, '%1')
-                line[#line] = string.gsub(last, rr .. '$', '')
+                line[1] = string.gsub(first, '^(%s*)' .. lpattern, '%1')
+                line[#line] = string.gsub(last, rpattern .. '$', '')
             end
             return line
         end

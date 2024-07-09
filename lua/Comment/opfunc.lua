@@ -146,19 +146,20 @@ function Op.linewise(param)
     -- If the given cmode is uncomment then we actually don't want to compute the cmode or min_indent
     if param.cmode ~= U.cmode.uncomment then
         for _, line in ipairs(param.lines) do
-            -- I wish lua had `continue` statement [sad noises]
-            if not U.ignore(line, pattern) then
-                if cmode == U.cmode.uncomment and param.cmode == U.cmode.toggle and (not check_comment(line)) then
-                    cmode = U.cmode.comment
-                end
+            if U.ignore(line, pattern) then
+                goto continue
+            end
+            if cmode == U.cmode.uncomment and param.cmode == U.cmode.toggle and (not check_comment(line)) then
+                cmode = U.cmode.comment
+            end
 
-                if not U.is_empty(line) and param.cmode ~= U.cmode.uncomment then
-                    local _, len = string.find(line, '^%s*')
-                    if min_indent == -1 or min_indent > len then
-                        min_indent, tabbed = len, string.find(line, '^\t') ~= nil
-                    end
+            if not U.is_empty(line) and param.cmode ~= U.cmode.uncomment then
+                local _, len = string.find(line, '^%s*')
+                if min_indent == -1 or min_indent > len then
+                    min_indent, tabbed = len, string.find(line, '^\t') ~= nil
                 end
             end
+            ::continue::
         end
     end
 
