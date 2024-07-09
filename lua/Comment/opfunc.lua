@@ -168,14 +168,14 @@ function Op.linewise(param)
     end
 
     if cmode == Utils.cmode.uncomment then
-        local uncomment = Utils.uncommenter(param.lcs, param.rcs, padding)
+        local uncomment = Utils.uncommenter(param.lcs, param.rcs, padding, true)
         for i, line in ipairs(param.lines) do
             if not Utils.ignore(line, pattern) then
                 param.lines[i] = uncomment(line) --[[@as string]]
             end
         end
     else
-        local comment = Utils.commenter(param.lcs, param.rcs, padding, min_indent, nil, tabbed)
+        local comment = Utils.commenter(param.lcs, param.rcs, padding, true, min_indent, nil, tabbed)
         for i, line in ipairs(param.lines) do
             if not Utils.ignore(line, pattern) then
                 param.lines[i] = comment(line) --[[@as string]]
@@ -194,7 +194,7 @@ end
 ---@return integer _ Returns a calculated comment mode
 function Op.blockwise(param, partial)
     local is_x = #param.lines == 1 -- current-line blockwise
-    local lines = is_x and param.lines[1] or param.lines
+    local input = is_x and param.lines[1] or param.lines
 
     local padding = Utils.is_fn(param.cfg.padding)
 
@@ -206,20 +206,20 @@ function Op.blockwise(param, partial)
     -- If given mode is toggle then determine whether to comment or not
     local cmode = param.cmode
     if cmode == Utils.cmode.toggle then
-        local is_cmt = Utils.is_commented(param.lcs, param.rcs, padding, scol, ecol)(lines)
+        local is_cmt = Utils.is_commented(param.lcs, param.rcs, padding, scol, ecol)(input)
         cmode = is_cmt and Utils.cmode.uncomment or Utils.cmode.comment
     end
 
     if cmode == Utils.cmode.uncomment then
-        lines = Utils.uncommenter(param.lcs, param.rcs, padding, scol, ecol)(lines)
+        input = Utils.uncommenter(param.lcs, param.rcs, padding, false, scol, ecol)(input)
     else
-        lines = Utils.commenter(param.lcs, param.rcs, padding, scol, ecol)(lines)
+        input = Utils.commenter(param.lcs, param.rcs, padding, false, scol, ecol)(input)
     end
 
-    if is_x then
-        vim.api.nvim_set_current_line(lines)
+    if type(input) == 'string' then
+        vim.api.nvim_set_current_line(input)
     else
-        vim.api.nvim_buf_set_lines(0, param.range.srow - 1, param.range.erow, false, lines)
+        vim.api.nvim_buf_set_lines(0, param.range.srow - 1, param.range.erow, false, input)
     end
 
     return cmode

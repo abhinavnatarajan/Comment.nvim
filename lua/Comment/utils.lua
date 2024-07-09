@@ -190,20 +190,20 @@ end
 ---@param left string Left side of the commentstring
 ---@param right string Right side of the commentstring
 ---@param padding boolean Is padding enabled?
+---@param linewise boolean Is linewise comment?
 ---@param scol? integer Starting column
 ---@param ecol? integer Ending column
 ---@param tabbed? boolean Using tab indentation
 ---@return (fun(line: string) : string) | (fun(input: string|string[]) : string|string[])
-function U.commenter(left, right, padding, scol, ecol, tabbed)
+function U.commenter(left, right, padding, linewise, scol, ecol, tabbed)
     local pad = U.get_pad(padding)
     local ll = U.is_empty(left) and left or (left .. pad)
     local rr = U.is_empty(right) and right or (pad .. right)
-    local empty = string.rep(tabbed and '\t' or ' ', scol or 0) .. ll .. rr
-    local is_lw = scol and not ecol
     ------------------
     -- for linewise --
     ------------------
-    if is_lw then
+    if linewise then
+        local empty = string.rep(tabbed and '\t' or ' ', scol or 0) .. ll .. rr
         return
         ---@param line string
         ---@return string
@@ -266,21 +266,20 @@ end
 ---@param l_cstr string Left side of the commentstring
 ---@param r_cstr string Right side of the commentstring
 ---@param padding boolean Is padding enabled?
+---@param linewise boolean Is linewise uncomment?
 ---@param scol? integer Starting column
 ---@param ecol? integer Ending column
 ---@return (fun(line: string) : string) | (fun(input: string|string[]) : string|string[])
-function U.uncommenter(l_cstr, r_cstr, padding, scol, ecol)
+function U.uncommenter(l_cstr, r_cstr, padding, linewise, scol, ecol)
     local padpattern, padlen = U.get_padpat(padding), padding and 1 or 0
     local left_len, right_len = #l_cstr + padlen, #r_cstr + padlen
     local lpattern = U.is_empty(l_cstr) and l_cstr or vim.pesc(l_cstr) .. padpattern
     local rpattern = U.is_empty(r_cstr) and r_cstr or padpattern .. vim.pesc(r_cstr)
-    local is_lw = not (scol and scol)
-    local pattern = is_lw and '^(%s*)' .. lpattern .. '(.-)' .. rpattern .. '$' or ''
-
     ------------------
     -- for linewise --
     ------------------
-    if is_lw then
+    if linewise then
+        local pattern = '^(%s*)' .. lpattern .. '(.-)' .. rpattern .. '$'
         return
         ---@param line string
         ---@return string
