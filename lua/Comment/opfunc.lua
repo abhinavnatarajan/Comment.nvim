@@ -31,7 +31,7 @@ function Op.opfunc(motion, cfg, cmode, ctype)
     -- If we are doing char or visual motion on the same line
     -- then we would probably want block comment instead of line comment
     local is_partial = cmotion == Utils.cmotion.char or cmotion == Utils.cmotion.v
-    local is_blockx = is_partial and range.srow == range.erow
+    -- local is_blockx = is_partial and range.srow == range.erow
 
     local lines = Utils.get_lines(range)
 
@@ -45,7 +45,7 @@ function Op.opfunc(motion, cfg, cmode, ctype)
     local ctx = {
         cmode = cmode,
         cmotion = cmotion,
-        ctype = is_blockx and Utils.ctype.blockwise or ctype,
+        ctype = ctype,
         range = range,
     }
 
@@ -61,7 +61,8 @@ function Op.opfunc(motion, cfg, cmode, ctype)
         range = range,
     }
 
-    if motion ~= nil and (is_blockx or ctype == Utils.ctype.blockwise) then
+    -- if motion ~= nil and (is_blockx or ctype == Utils.ctype.blockwise) then
+    if ctype == Utils.ctype.blockwise then
         ctx.cmode = Op.blockwise(params, is_partial)
     else
         ctx.cmode = Op.linewise(params)
@@ -168,14 +169,14 @@ function Op.linewise(param)
     end
 
     if cmode == Utils.cmode.uncomment then
-        local uncomment = Utils.uncommenter(param.lcs, param.rcs, padding, true)
+        local uncomment = Utils.uncommenter(param.lcs, param.rcs, padding)
         for i, line in ipairs(param.lines) do
             if not Utils.ignore(line, pattern) then
                 param.lines[i] = uncomment(line) --[[@as string]]
             end
         end
     else
-        local comment = Utils.commenter(param.lcs, param.rcs, padding, true, min_indent, nil, tabbed)
+        local comment = Utils.commenter(param.lcs, param.rcs, padding, min_indent+1, nil, tabbed)
         for i, line in ipairs(param.lines) do
             if not Utils.ignore(line, pattern) then
                 param.lines[i] = comment(line) --[[@as string]]
@@ -194,14 +195,18 @@ end
 ---@return integer _ Returns a calculated comment mode
 function Op.blockwise(param, partial)
     local is_x = #param.lines == 1 -- current-line blockwise
-    local input = is_x and param.lines[1] or param.lines
+    -- local input = is_x and param.lines[1] or param.lines
+    local input = param.lines
 
     local padding = Utils.is_fn(param.cfg.padding)
 
     local scol, ecol = nil, nil
-    if is_x or partial then
+    -- if is_x or partial then
+    if partial then
         scol, ecol = param.range.scol, param.range.ecol
     end
+    -- if V-mode then scol and ecol are empty
+    -- if v-mode or char-mode then scol and ecol correspond to the selection
 
     -- If given mode is toggle then determine whether to comment or not
     local cmode = param.cmode
@@ -211,18 +216,15 @@ function Op.blockwise(param, partial)
     end
 
     if cmode == Utils.cmode.uncomment then
-        input = Utils.uncommenter(param.lcs, param.rcs, padding, false, scol, ecol)(input)
+        input = Utils.uncommenter(param.lcs, param.rcs, padding, scol, ecol)(input)
     else
-        input = Utils.commenter(param.lcs, param.rcs, padding, false, scol, ecol)(input)
+        input = Utils.commenter(param.lcs, param.rcs, padding, scol, ecol)(input)
     end
 
-    if type(input) == 'string' then
-        vim.api.nvim_set_current_line(input)
-    else
-        vim.api.nvim_buf_set_lines(0, param.range.srow - 1, param.range.erow, false, input)
-    end
+    vim.api.nvim_buf_set_lines(0, param.range.srow - 1, param.range.erow, false, input)
 
     return cmode
 end
 
 return Op
+

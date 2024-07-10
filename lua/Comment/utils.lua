@@ -13,10 +13,10 @@ local U = {}
 
 ---Range of the selection that needs to be commented
 ---@class CommentRange
----@field srow integer Starting row
----@field scol integer Starting column
----@field erow integer Ending row
----@field ecol integer Ending column
+---@field srow integer Starting row (1-based)
+---@field scol integer Starting column (1-based)
+---@field erow integer Ending row (1-based, inclusive)
+---@field ecol integer Ending column (1-based, inclusive)
 
 ---Comment modes - Can be manual or computed via operator-mode
 ---@class CommentMode
@@ -119,7 +119,7 @@ function U.get_region(opmode)
     local marks = string.match(opmode, '[vV]') and { '<', '>' } or { '[', ']' }
     local sln, eln = vim.api.nvim_buf_get_mark(0, marks[1]), vim.api.nvim_buf_get_mark(0, marks[2])
 
-    return { srow = sln[1], scol = sln[2], erow = eln[1], ecol = eln[2] }
+    return { srow = sln[1], scol = sln[2]+1, erow = eln[1], ecol = eln[2]+1 }
 end
 
 ---Get lines from the current position to the given count
@@ -190,72 +190,48 @@ end
 ---@param left string Left side of the commentstring
 ---@param right string Right side of the commentstring
 ---@param padding boolean Is padding enabled?
----@param linewise boolean Is linewise comment?
 ---@param scol? integer Starting column
 ---@param ecol? integer Ending column
 ---@param tabbed? boolean Using tab indentation
----@return (fun(line: string) : string) | (fun(input: string|string[]) : string|string[])
-function U.commenter(left, right, padding, linewise, scol, ecol, tabbed)
+---@return (fun(line: string) : string) | (fun(input: string[]) :string[])
+function U.commenter(left, right, padding, scol, ecol, tabbed)
     local pad = U.get_pad(padding)
     local ll = U.is_empty(left) and left or (left .. pad)
     local rr = U.is_empty(right) and right or (pad .. right)
-    ------------------
-    -- for linewise --
-    ------------------
-    if linewise then
-        local empty = string.rep(tabbed and '\t' or ' ', scol or 0) .. ll .. rr
-        return
-        ---@param line string
-        ---@return string
-            function(line)
-                if U.is_empty(line) then
+    local empty = string.rep(tabbed and '\t' or ' ', scol or 0) .. ll .. rr
+    return
+    ---@param input string | string[] Input to be commented; can be a string or a list of strings. Will be mutated!
+    ---@return string | string[]
+        function(input)
+            if type(input) == "string" then
+                ------------------
+                -- for linewise --
+                ------------------
+                if U.is_empty(input) then
                     return empty
                 end
                 -- line == 0 -> start from 0 col
-                if scol == 0 then
-                    return (ll .. line .. rr)
+                if scol == 1 then
+                    return (ll .. input .. rr)
                 end
-                local first = line:sub(0, scol)
-                local last = line:sub(scol + 1, -1)
+                local first = input:sub(1, scol - 1)
+                local last = input:sub(scol, -1)
                 return first .. ll .. last .. rr
             end
-    end
-
-    return
-    ---@param input string|string[]
-    ---@return string|string[]
-        function(input)
             -------------------
             -- for blockwise --
             -------------------
-            if type(input) == 'table' then
-                local sline, eline = input[1], input[#input]
-                -- If both columns are given then we can assume it's a partial block
-                if scol and ecol then
-                    local sfirst = sline:sub(0, scol)
-                    local slast = sline:sub(scol + 1, -1)
-                    local efirst = eline:sub(0, ecol + 1)
-                    local elast = eline:sub(ecol + 2, -1)
-                    input[1] = sfirst .. ll .. slast
-                    input[#input] = efirst .. rr .. elast
-                else
-                    input[1] = U.is_empty(sline) and left or sline:gsub('^(%s*)', '%1' .. vim.pesc(ll))
-                    input[#input] = U.is_empty(eline) and right or (eline .. rr)
-                end
-                return input
+            local n = #input
+            -- If both columns are given then we can assume it's a partial block
+            if scol and ecol then
+                input[1] = input[1]:sub(1, scol - 1) .. ll .. input[1]:sub(scol, -1)
+                if n == 1 then ecol = ecol + #ll end
+                input[n] = input[n]:sub(1, ecol) .. rr .. input[n]:sub(ecol + 1, -1)
+            else
+                input[1] = U.is_empty(input[1]) and left or input[1]:gsub('^(%s*)', '%1' .. vim.pesc(ll))
+                input[n] = U.is_empty(input[n]) and right or (input[n] .. rr)
             end
-
-            --------------------------------
-            -- for current-line blockwise --
-            --------------------------------
-            -- SOURCE: https://github.com/numToStr/Comment.nvim/issues/224
-            if ecol > #input then
-                return ll .. input .. rr
-            end
-            local first = input:sub(0, scol)
-            local mid = input:sub(scol + 1, ecol + 1)
-            local last = input:sub(ecol + 2, -1)
-            return first .. ll .. mid .. rr .. last
+            return input
         end
 end
 
@@ -266,68 +242,45 @@ end
 ---@param l_cstr string Left side of the commentstring
 ---@param r_cstr string Right side of the commentstring
 ---@param padding boolean Is padding enabled?
----@param linewise boolean Is linewise uncomment?
 ---@param scol? integer Starting column
 ---@param ecol? integer Ending column
 ---@return (fun(line: string) : string) | (fun(input: string|string[]) : string|string[])
-function U.uncommenter(l_cstr, r_cstr, padding, linewise, scol, ecol)
+function U.uncommenter(l_cstr, r_cstr, padding, scol, ecol)
     local padpattern, padlen = U.get_padpat(padding), padding and 1 or 0
     local left_len, right_len = #l_cstr + padlen, #r_cstr + padlen
     local lpattern = U.is_empty(l_cstr) and l_cstr or vim.pesc(l_cstr) .. padpattern
     local rpattern = U.is_empty(r_cstr) and r_cstr or padpattern .. vim.pesc(r_cstr)
-    ------------------
-    -- for linewise --
-    ------------------
-    if linewise then
-        local pattern = '^(%s*)' .. lpattern .. '(.-)' .. rpattern .. '$'
-        return
-        ---@param line string
-        ---@return string
-            function(line)
-                local a, b = line:match(pattern)
-                -- When user tries to uncomment when there is nothing to uncomment. See #221
+    local pattern = '^(%s*)' .. lpattern .. '(.-)' .. rpattern .. '$'
+    return
+    ---@param input string | string[] Input to be uncommented; can be a string or a list of strings. Will be mutated!
+    ---@return string | string[]
+        function(input)
+            if type(input) == 'string' then
+                ------------------
+                -- for linewise --
+                ------------------
+                local a, b = input:match(pattern)
+                -- When user tries to uncomment when there is nothing to uncomment.
+                -- See https://github.com/numToStr/Comment.nvim/issues/221
                 assert(a and b, { msg = 'Nothing to uncomment!' })
                 -- If there is nothing after LHS then just return ''
                 -- bcz the line previously (before comment) was empty
                 return a .. b
             end
-    end
-
-    return
-    ---@param input string|string[]
-    ---@return string|string[]
-        function(input)
             -------------------
             -- for blockwise --
             -------------------
-            if type(input) == 'table' then
-                local sline, eline = input[1], input[#input]
-                -- If both columns are given then we can assume it's a partial block
-                if scol and ecol then
-                    local sline_a = sline:sub(0, scol)
-                    local sline_b = sline:sub(scol + left_len + 1, -1)
-                    local eline_a = eline:sub(0, ecol - right_len + 1)
-                    local eline_b = eline:sub(ecol + 2, -1)
-                    input[1] = sline_a .. sline_b
-                    input[#input] = eline_a .. eline_b
-                else
-                    input[1] = sline:gsub('^(%s*)' .. lpattern, '%1')
-                    input[#input] = eline:gsub(rpattern .. '$', '')
-                end
-                return input
+            local n = #input
+            -- If both columns are given then we can assume it's a partial block
+            if scol and ecol then
+                input[1] = input[1]:sub(1, scol - 1) .. input[1]:sub(scol - 1 + left_len, -1)
+                if n == 1 then ecol = ecol - left_len end
+                input[n] = input[n]:sub(1, ecol - right_len) .. input[n]:sub(ecol + 1, -1)
+            else
+                input[1] = input[1]:gsub('^(%s*)' .. lpattern, '%1')
+                input[n] = input[n]:gsub(rpattern .. '$', '')
             end
-            --------------------------------
-            -- for current-line blockwise --
-            --------------------------------
-            -- SOURCE: https://github.com/numToStr/Comment.nvim/issues/224
-            -- input is a string
-            if ecol > #input then
-                return input:sub(scol + left_len + 1, #input - right_len)
-            end
-            local a = input:sub(0, scol)
-            local b = input:sub(scol + left_len + 1, ecol - right_len + 1)
-            local c = input:sub(ecol + 2, -1)
-            return a .. b .. c
+            return input
         end
 end
 
@@ -343,37 +296,26 @@ end
 ---@param ecol? integer Ending column
 ---@return fun(line: string|string[]):boolean
 function U.is_commented(left, right, padding, scol, ecol)
-    local pp = U.get_padpat(padding)
-    local ll = U.is_empty(left) and left or '^%s*' .. vim.pesc(left) .. pp
-    local rr = U.is_empty(right) and right or pp .. vim.pesc(right) .. '$'
+    local padpattern = U.get_padpat(padding)
+    local ll = U.is_empty(left) and left or '^%s*' .. vim.pesc(left) .. padpattern
+    local rr = U.is_empty(right) and right or padpattern .. vim.pesc(right) .. '$'
     local pattern = ll .. '.-' .. rr
-    local is_full = scol == nil or ecol == nil
 
-    return function(line)
-        -------------------
-        -- for blockwise --
-        -------------------
-        if type(line) == 'table' then
-            local first, last = line[1], line[#line]
-            if not is_full then
-                first = first:sub(scol + 1, -1)
-                last = last:sub(0, ecol + 1)
-            end
-            return (first:find(ll) and last:find(rr)) ~= nil
-        end
-
+    return function(input)
         ------------------
         -- for linewise --
         ------------------
-        if is_full then
-            return string.find(line, pattern) ~= nil
+        if type(input) == 'string' then
+            return input:find(pattern) ~= nil
         end
 
-        --------------------------------
-        -- for current-line blockwise --
-        --------------------------------
-        -- SOURCE: https://github.com/numToStr/Comment.nvim/issues/224
-        return line:sub(scol + 1, (ecol > #line and #line or ecol + 1)):find(pattern) ~= nil
+        -------------------
+        -- for blockwise --
+        -------------------
+        if not scol then scol = 1 end
+        if not ecol then ecol = #input[#input] end
+        return (input[1]:sub(scol, -1):find(ll)
+            and input[#input]:sub(1, ecol):find(rr)) ~= nil
     end
 end
 
@@ -387,3 +329,4 @@ function U.catch(fn, ...)
 end
 
 return U
+
