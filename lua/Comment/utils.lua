@@ -116,8 +116,18 @@ function U.get_region(opmode)
         return { srow = row, scol = 0, erow = row, ecol = 0 }
     end
 
-    local marks = string.match(opmode, '[vV]') and { '<', '>' } or { '[', ']' }
-    local sln, eln = vim.api.nvim_buf_get_mark(0, marks[1]), vim.api.nvim_buf_get_mark(0, marks[2])
+    -- local marks = opmode:match('[vV]') and { '<', '>' } or { '[', ']' }
+    if opmode:match('[vV]') then
+        local srow, erow = vim.fn.line('v'), vim.fn.line('.')
+        local scol, ecol = vim.fn.col('v'), vim.fn.col('.')
+        if srow > erow or (srow == erow and scol > ecol) then
+            srow, erow, scol, ecol = erow, srow, ecol, scol
+        end
+        return { srow = srow, scol = scol, erow = erow, ecol = ecol }
+    end
+
+    -- local sln, eln = vim.api.nvim_buf_get_mark(0, marks[1]), vim.api.nvim_buf_get_mark(0, marks[2])
+    local sln, eln = vim.api.nvim_buf_get_mark(0, '['), vim.api.nvim_buf_get_mark(0, ']')
 
     return { srow = sln[1], scol = sln[2]+1, erow = eln[1], ecol = eln[2]+1 }
 end
@@ -329,4 +339,6 @@ function U.catch(fn, ...)
 end
 
 return U
+
+
 
