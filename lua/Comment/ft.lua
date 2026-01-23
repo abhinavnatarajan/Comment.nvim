@@ -294,6 +294,7 @@ function ft.calculate(ctx)
     if not ok then
         return ft.get(vim.bo.filetype, ctx.ctype) --[[ @as string ]]
     end
+    parser:parse()
 
     local lang = ft.contains(parser, {
         ctx.range.srow - 1,
