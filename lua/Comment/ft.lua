@@ -291,7 +291,7 @@ end
 function ft.calculate(ctx)
     local ok, parser = pcall(vim.treesitter.get_parser, vim.api.nvim_get_current_buf())
 
-    if not ok then
+    if not ok or parser == nil then
         return ft.get(vim.bo.filetype, ctx.ctype) --[[ @as string ]]
     end
     parser:parse()
